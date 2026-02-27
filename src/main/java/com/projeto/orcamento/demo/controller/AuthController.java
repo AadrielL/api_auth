@@ -13,6 +13,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
+@CrossOrigin(origins = "http://localhost:4200") // Permite que o Angular acesse a API
 @RequestMapping("auth")
 public class AuthController {
     @Autowired private AuthenticationManager authenticationManager;
