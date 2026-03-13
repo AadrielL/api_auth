@@ -24,8 +24,18 @@ public class AuthController {
     public ResponseEntity login(@RequestBody @Valid AuthenticationDTO data){
         var usernamePassword = new UsernamePasswordAuthenticationToken(data.email(), data.password());
         var auth = this.authenticationManager.authenticate(usernamePassword);
-        var token = tokenService.generateToken((User) auth.getPrincipal());
-        return ResponseEntity.ok(new LoginResponseDTO(token));
+
+        // Recupera o usuário do banco para pegar o Nome e a Role
+        var user = (User) auth.getPrincipal();
+        var token = tokenService.generateToken(user);
+
+        // Retorna o DTO com todos os campos novos
+        return ResponseEntity.ok(new LoginResponseDTO(
+                token,
+                user.getRole().toString(),
+                user.getNome(),
+                user.getEmail()
+        ));
     }
 
     @PostMapping("/register")

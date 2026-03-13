@@ -5,12 +5,17 @@ import com.projeto.orcamento.demo.model.UserRole;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
-// Agrupando todos os contratos de dados em um único lugar para agilizar
 public class AuthDTOs {
 
     public record AuthenticationDTO(@NotBlank String email, @NotBlank String password) {}
 
-    public record LoginResponseDTO(String token) {}
+    // ATUALIZADO: Agora envia tudo que o Angular precisa para o saveSession()
+    public record LoginResponseDTO(
+            String token,
+            String role,
+            String nome,
+            String email
+    ) {}
 
     public record RegisterDTO(
             @NotBlank String nome,
