@@ -1,6 +1,6 @@
 package com.projeto.orcamento.demo.service;
 
-import com.projeto.orcamento.demo.dto.AuthDTOs; // Importamos a classe que contém os records
+import com.projeto.orcamento.demo.dto.AuthDTOs.RegisterDTO;
 import com.projeto.orcamento.demo.model.User;
 import com.projeto.orcamento.demo.model.UserRole;
 import com.projeto.orcamento.demo.repository.UserRepository;
@@ -9,39 +9,30 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.util.UUID;
-
 @Service
 public class UserService {
 
     @Autowired
-    private UserRepository repository;
+    private UserRepository userRepository;
 
-    // Referenciamos como AuthDTOs.RegisterDTO
-    public ResponseEntity register(AuthDTOs.RegisterDTO data) {
-        if(this.repository.findByEmail(data.email()) != null) {
-            return ResponseEntity.badRequest().body("E-mail já cadastrado");
+    public ResponseEntity register(RegisterDTO data) {
+        if (this.userRepository.findByEmail(data.email()) != null) {
+            return ResponseEntity.badRequest().build();
         }
 
         String encryptedPassword = new BCryptPasswordEncoder().encode(data.password());
 
-        // Lógica Multi-tenant: ADMIN gera UUID, VISITANTE usa 'public'
-        String tenantId = (data.role() == UserRole.ADMIN) ? UUID.randomUUID().toString() : "public";
+        // COPIE ESTA PARTE: Criando você como ADMIN direto
+        User newUser = new User(
+                data.nome(),
+                data.email(),
+                encryptedPassword,
+                UserRole.ADMIN, // Força Admin para liberar as telas
+                "default-tenant"
+        );
 
-        User newUser = new User(data.nome(), data.email(), encryptedPassword, data.role(), tenantId);
-        this.repository.save(newUser);
+        this.userRepository.save(newUser);
 
         return ResponseEntity.ok().build();
-    }
-
-    public boolean canUserCalculate(User user) {
-        if (user.getRole() == UserRole.ADMIN) return true;
-
-        // Lógica de limite para Visitante: 1 por dia
-        user.incrementDailyCount();
-        if (user.getDailyCount() > 1) return false;
-
-        repository.save(user);
-        return true;
     }
 }
