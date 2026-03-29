@@ -20,7 +20,8 @@ public class TokenService {
                 .withIssuer("auth-api")
                 .withSubject(user.getEmail())
                 .withClaim("role", user.getRole().toString())
-                .withClaim("tenant_id", user.getTenantId())
+                // PADRONIZADO: Sem underline para bater com as outras APIs
+                .withClaim("tenantId", user.getTenantId())
                 .withExpiresAt(genExpirationDate())
                 .sign(algorithm);
     }
@@ -39,10 +40,12 @@ public class TokenService {
     }
 
     public String getTenantIdFromToken(String token) {
-        return JWT.decode(token).getClaim("tenant_id").asString();
+        // Busca o nome padronizado
+        return JWT.decode(token).getClaim("tenantId").asString();
     }
 
     private Instant genExpirationDate(){
-        return LocalDateTime.now().plusHours(2).toInstant(ZoneOffset.of("-03:00"));
+        // 8 Horas em UTC evita conflitos de fuso horário do sistema operacional
+        return LocalDateTime.now().plusHours(8).toInstant(ZoneOffset.UTC);
     }
 }
