@@ -1,39 +1,23 @@
-# 🔐 API Auth - Serviço de Identidade e Multitenancy (Porta 8083)
+# API Authentication Service Documentation
 
-Este microserviço é o guardião do ecossistema. Ele é responsável por autenticar usuários, gerenciar permissões (RBAC) e injetar o contexto de **Multitenancy** através de tokens JWT.
+## Overview
+This authentication service provides secure access to API endpoints using JSON Web Tokens (JWT). It supports various authentication strategies and is designed for multitenancy.
 
----
+## Authentication Flow
+1. **User Registration**: Users can register with their credentials.
+2. **Token Generation**: After successful login, a JWT token is generated that expires after a defined time.
+3. **Accessing API**: Users send the JWT token in the Authorization header when making API requests.
 
-## 🛠️ Tecnologias e Conceitos Aplicados
+## JWT Tokens
+- JWT tokens contain three parts: Header, Payload, and Signature.
+- **Header**: Contains metadata, typically the token type and signing algorithm.
+- **Payload**: Contains claims, which are statements about an entity (usually the user) and additional data.
+- **Signature**: This is used to verify that the sender of the JWT is who it says it is and to ensure that the message wasn't changed along the way.
 
-* **Java 21 & Spring Boot 3**
-* **Spring Security**: Configuração de segurança Stateless.
-* **JWT (JSON Web Token)**: Utilização da biblioteca `auth0` para geração e validação de tokens.
-* **BCrypt**: Hashing de senhas para armazenamento seguro no banco.
-* **CORS Configuration**: Configurado especificamente para aceitar requisições de aplicações **Javascript (Angular)** rodando em `localhost:4200`.
-* **Multitenancy Strategy**: Injeção do `tenant_id` dentro do payload do Token, permitindo o isolamento de dados nas APIs de cálculo e orçamento.
+## Multitenancy Strategy
+- The service is built to support multiple tenants (clients) within a single instance of the application.
+- Each tenant's data is isolated, ensuring data privacy and integrity.
+- Configuration settings allow per-tenant customization of authentication rules and policies.
 
----
-
-## 🚀 Endpoints de Autenticação
-
-| Método | Endpoint | Acesso | Descrição |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/auth/login` | Público | Autentica e retorna o JWT com Nome, Email, Role e TenantId. |
-| `POST` | `/auth/register` | Público | Registra um novo profissional (Default: ADMIN). |
-| `GET` | `/auth/me` | Autenticado | Retorna os dados do perfil do usuário logado via Contexto de Segurança. |
-
----
-
-## 🔐 Estrutura do Token JWT
-
-O token gerado por esta API não apenas autentica o usuário, mas carrega informações vitais para o funcionamento dos outros microserviços:
-
-```json
-{
-  "iss": "auth-api",
-  "sub": "eletricista@email.com",
-  "role": "ADMIN",
-  "tenant_id": "uuid-do-profissional",
-  "exp": 1711215600
-}   
+## Conclusion
+This service provides a robust foundation for implementing secure authentication across a variety of applications. Proper implementation of JWT and an effective multitenancy strategy ensure that the service is scalable and secure.
