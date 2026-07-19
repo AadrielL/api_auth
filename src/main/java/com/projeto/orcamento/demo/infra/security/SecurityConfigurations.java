@@ -40,6 +40,7 @@ public class SecurityConfigurations {
                         .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/register").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/payments/confirm").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/payments/process").permitAll()
                         // Exige ADMIN para rotas /admin
                         .requestMatchers(HttpMethod.GET, "/admin/**").hasRole("ADMIN")
                         // Qualquer outra rota exige token

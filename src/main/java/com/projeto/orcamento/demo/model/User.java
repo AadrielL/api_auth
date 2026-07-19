@@ -7,6 +7,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 
@@ -36,6 +37,7 @@ public class User implements UserDetails {
 
     private LocalDate lastCalculationDate;
     private Integer dailyCount = 0;
+    private LocalDateTime subscriptionExpiryDate;
 
     // Construtor personalizado para o Registro
     public User(String nome, String email, String password, UserRole role, String tenantId) {
