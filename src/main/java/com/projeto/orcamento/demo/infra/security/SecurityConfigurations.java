@@ -39,6 +39,7 @@ public class SecurityConfigurations {
                         // Libera as rotas de autenticação
                         .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/register").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/auth/vagas-vitalicias").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/payments/confirm").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/payments/process").permitAll()
                         // Exige ADMIN para rotas /admin

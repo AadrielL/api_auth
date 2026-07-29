@@ -19,6 +19,7 @@ public class AuthController {
     @Autowired private AuthenticationManager authenticationManager;
     @Autowired private UserService userService;
     @Autowired private TokenService tokenService;
+    @Autowired private com.projeto.orcamento.demo.service.SubscriptionService subscriptionService;
 
     @PostMapping("/login")
     public ResponseEntity login(@RequestBody @Valid AuthenticationDTO data){
@@ -47,5 +48,10 @@ public class AuthController {
     public ResponseEntity getMe() {
         var user = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         return ResponseEntity.ok(new UserResponseDTO(user));
+    }
+
+    @GetMapping("/vagas-vitalicias")
+    public ResponseEntity<Long> getVagasVitalicias() {
+        return ResponseEntity.ok(subscriptionService.getVagasVitaliciasRestantes());
     }
 }

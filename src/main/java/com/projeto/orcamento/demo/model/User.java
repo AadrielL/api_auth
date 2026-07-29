@@ -35,6 +35,9 @@ public class User implements UserDetails {
 
     private String tenantId;
 
+    @Column(nullable = false)
+    private String planType = "FREE";
+
     private LocalDate lastCalculationDate;
     private Integer dailyCount = 0;
     private LocalDateTime subscriptionExpiryDate;
@@ -46,6 +49,7 @@ public class User implements UserDetails {
         this.password = password;
         this.role = role;
         this.tenantId = tenantId;
+        this.planType = "FREE";
     }
 
     public void incrementDailyCount() {

@@ -22,6 +22,7 @@ public class TokenService {
                 .withClaim("role", user.getRole().toString())
                 // PADRONIZADO: Sem underline para bater com as outras APIs
                 .withClaim("tenantId", user.getTenantId())
+                .withClaim("planType", user.getPlanType())
                 .withExpiresAt(genExpirationDate())
                 .sign(algorithm);
     }
