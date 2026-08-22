@@ -1,9 +1,7 @@
 package com.projeto.orcamento.demo.dto;
 
 import com.projeto.orcamento.demo.model.User;
-import com.projeto.orcamento.demo.model.UserRole;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 
 public class AuthDTOs {
 
@@ -20,8 +18,7 @@ public class AuthDTOs {
     public record RegisterDTO(
             @NotBlank String nome,
             @NotBlank String email,
-            @NotBlank String password,
-            @NotNull UserRole role
+            @NotBlank String password
     ) {}
 
     public record UserResponseDTO(String id, String nome, String email, String role, String tenantId) {
