@@ -28,6 +28,24 @@ public class GlobalExceptionHandler {
     @Value("${spring.application.name:api_1}")
     private String serviceName;
 
+    @ExceptionHandler(org.springframework.security.authentication.BadCredentialsException.class)
+    public ResponseEntity<Map<String, Object>> handleBadCredentials(org.springframework.security.authentication.BadCredentialsException ex) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("error", "Unauthorized");
+        response.put("message", "E-mail ou senha inválidos.");
+        response.put("status", HttpStatus.UNAUTHORIZED.value());
+        return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
+    }
+
+    @ExceptionHandler(org.springframework.web.bind.MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, Object>> handleValidation(org.springframework.web.bind.MethodArgumentNotValidException ex) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("error", "Bad Request");
+        response.put("message", "Dados de formulário inválidos ou incompletos.");
+        response.put("status", HttpStatus.BAD_REQUEST.value());
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleAllExceptions(Exception ex, HttpServletRequest request) {
         // Extrair o stack trace
@@ -44,7 +62,7 @@ public class GlobalExceptionHandler {
             logger.error("Falha ao salvar erro no banco de dados!", dbEx);
         }
 
-        // Construir resposta padronizada para o Frontend (Cyber/Pixel friendly API response)
+        // Construir resposta padronizada para o Frontend
         Map<String, Object> response = new HashMap<>();
         response.put("error", "Internal Server Error");
         response.put("message", "Ocorreu um problema no servidor. Nossa equipe técnica foi notificada.");

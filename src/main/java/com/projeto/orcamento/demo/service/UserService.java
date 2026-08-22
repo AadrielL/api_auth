@@ -63,4 +63,8 @@ public class UserService {
             logger.info("UPGRADE: Usuário {} agora é ADMIN (Plano Ativado)!", email);
         }
     }
+
+    public User findByEmail(String email) {
+        return (User) userRepository.findByEmail(email);
+    }
 }

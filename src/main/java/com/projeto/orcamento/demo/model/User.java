@@ -35,7 +35,7 @@ public class User implements UserDetails {
 
     private String tenantId;
 
-    @Column(nullable = false)
+    @Column(columnDefinition = "varchar(20) default 'FREE'")
     private String planType = "FREE";
 
     private LocalDate lastCalculationDate;

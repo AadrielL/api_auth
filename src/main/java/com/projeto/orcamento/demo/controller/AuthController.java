@@ -50,6 +50,19 @@ public class AuthController {
         return ResponseEntity.ok(new UserResponseDTO(user));
     }
 
+    @GetMapping("/refresh")
+    public ResponseEntity refresh() {
+        var user = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        var updatedUser = userService.findByEmail(user.getEmail());
+        var token = tokenService.generateToken(updatedUser);
+        return ResponseEntity.ok(new LoginResponseDTO(
+                token,
+                updatedUser.getRole().toString(),
+                updatedUser.getNome(),
+                updatedUser.getEmail()
+        ));
+    }
+
     @GetMapping("/vagas-vitalicias")
     public ResponseEntity<Long> getVagasVitalicias() {
         return ResponseEntity.ok(subscriptionService.getVagasVitaliciasRestantes());
