@@ -3,6 +3,7 @@ package com.projeto.orcamento.demo.infra.security;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.projeto.orcamento.demo.model.User;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import java.time.Instant;
@@ -11,8 +12,15 @@ import java.time.ZoneOffset;
 
 @Service
 public class TokenService {
-    @Value("${api.security.token.secret}")
+    @Value("${api.security.token.secret:}")
     private String secret;
+
+    @PostConstruct
+    public void validateSecret() {
+        if (secret == null || secret.trim().isEmpty()) {
+            throw new IllegalStateException("ERRO DE SEGURANÇA: A variável de ambiente 'JWT_SECRET' não foi configurada.");
+        }
+    }
 
     public String generateToken(User user){
         Algorithm algorithm = Algorithm.HMAC256(secret);
