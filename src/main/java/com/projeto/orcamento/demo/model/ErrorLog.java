@@ -21,7 +21,15 @@ public class ErrorLog {
     
     private String serviceName;
     
+    private String errorCode;
+
+    private Integer statusCode;
+
     private String endpoint;
+
+    private String httpMethod;
+
+    private String tenantId;
 
     @Column(columnDefinition = "TEXT")
     private String message;
@@ -29,10 +37,14 @@ public class ErrorLog {
     @Column(columnDefinition = "TEXT")
     private String stackTrace;
 
-    public ErrorLog(String serviceName, String endpoint, String message, String stackTrace) {
+    public ErrorLog(String serviceName, String errorCode, Integer statusCode, String endpoint, String httpMethod, String tenantId, String message, String stackTrace) {
         this.timestamp = LocalDateTime.now();
         this.serviceName = serviceName;
+        this.errorCode = errorCode;
+        this.statusCode = statusCode;
         this.endpoint = endpoint;
+        this.httpMethod = httpMethod;
+        this.tenantId = tenantId;
         this.message = message;
         this.stackTrace = stackTrace;
     }
