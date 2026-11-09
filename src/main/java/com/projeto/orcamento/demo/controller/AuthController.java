@@ -40,6 +40,16 @@ public class AuthController {
         ));
     }
 
+    @PostMapping("/verificar-codigo")
+    public ResponseEntity verificarCodigo(@RequestBody @Valid VerificarCodigoDTO data) {
+        return userService.verificarCodigo(data);
+    }
+
+    @PostMapping("/reenviar-codigo")
+    public ResponseEntity reenviarCodigo(@RequestBody @Valid ReenviarCodigoDTO data) {
+        return userService.reenviarCodigo(data);
+    }
+
     @PostMapping("/register")
     public ResponseEntity register(@RequestBody @Valid RegisterDTO data){
         return userService.register(data);

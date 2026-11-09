@@ -1,7 +1,7 @@
 package com.projeto.orcamento.demo.service;
 
-import com.projeto.orcamento.demo.dto.AuthDTOs.ParceiroDestaqueDTO;
-import com.projeto.orcamento.demo.dto.AuthDTOs.RegisterDTO;
+import com.projeto.orcamento.demo.dto.AuthDTOs.*;
+import com.projeto.orcamento.demo.infra.security.TokenService;
 import com.projeto.orcamento.demo.model.User;
 import com.projeto.orcamento.demo.model.UserRole;
 import com.projeto.orcamento.demo.repository.UserRepository;
@@ -15,6 +15,8 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.Random;
 import java.util.UUID;
 
 @Service
@@ -24,6 +26,12 @@ public class UserService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private EmailService emailService;
+
+    @Autowired
+    private TokenService tokenService;
 
     public ResponseEntity register(RegisterDTO data) {
         logger.info("Tentativa de registro SaaS para o e-mail: {}", data.email());
@@ -85,8 +93,9 @@ public class UserService {
                 tenantId = UUID.randomUUID().toString();
             }
 
-            // REGRA SAAS: Todo novo usuário entra como VISITANTE e plano FREE
-            // Upgrade para ADMIN / PRO ocorre somente via confirmação de pagamento
+            // Gera código numérico de 6 dígitos para validação real do e-mail
+            String codigo = String.format("%06d", new Random().nextInt(1000000));
+
             User newUser = new User(
                     data.nome(),
                     data.email(),
@@ -96,11 +105,21 @@ public class UserService {
                     tipoPerfil,
                     eletricistaVinculado
             );
+            newUser.setCodigoVerificacao(codigo);
+            newUser.setCodigoExpiracao(LocalDateTime.now().plusMinutes(15));
+            newUser.setEmailVerificado(false);
 
             this.userRepository.save(newUser);
-            logger.info("Usuário {} registrado como {} (VISITANTE/FREE). Tenant: {}", data.email(), tipoPerfil, tenantId);
+            logger.info("Usuário {} registrado. Código de verificação gerado.", data.email());
 
-            return ResponseEntity.ok().build();
+            // Dispara envio do e-mail via serviço de mensageria
+            emailService.enviarCodigoVerificacao(newUser.getEmail(), newUser.getNome(), codigo);
+
+            return ResponseEntity.ok(Map.of(
+                    "mensagem", "Cadastro realizado com sucesso! Enviamos um código de verificação para o seu e-mail.",
+                    "email", newUser.getEmail(),
+                    "emailVerificado", false
+            ));
         } catch (Exception e) {
             logger.error("Erro crítico no registro: ", e);
             return ResponseEntity.internalServerError().build();
@@ -108,9 +127,77 @@ public class UserService {
     }
 
     /**
-     * MODO SIMULAÇÃO DE PAGAMENTO:
-     * Usado por Webhooks (Mercado Pago/Stripe) após confirmação de pagamento
+     * Valida o código de 6 dígitos recebido por e-mail e ativa a conta
      */
+    public ResponseEntity verificarCodigo(VerificarCodigoDTO data) {
+        User user = (User) userRepository.findByEmail(data.email());
+        if (user == null) {
+            return ResponseEntity.status(404).body("Usuário não encontrado.");
+        }
+
+        if (Boolean.TRUE.equals(user.getEmailVerificado())) {
+            var token = tokenService.generateToken(user);
+            return ResponseEntity.ok(new LoginResponseDTO(
+                    token,
+                    user.getRole().toString(),
+                    user.getNome(),
+                    user.getEmail(),
+                    user.getTipoPerfil() != null ? user.getTipoPerfil() : "ELETRICISTA",
+                    user.getTenantId()
+            ));
+        }
+
+        if (user.getCodigoExpiracao() == null || LocalDateTime.now().isAfter(user.getCodigoExpiracao())) {
+            return ResponseEntity.badRequest().body("Código expirado. Por favor, solicite um novo código.");
+        }
+
+        if (!data.codigo().trim().equals(user.getCodigoVerificacao())) {
+            return ResponseEntity.badRequest().body("Código de verificação incorreto.");
+        }
+
+        // Ativa a conta com sucesso
+        user.setEmailVerificado(true);
+        user.setCodigoVerificacao(null);
+        user.setCodigoExpiracao(null);
+        userRepository.save(user);
+
+        logger.info("Conta ativada com sucesso para o e-mail: {}", user.getEmail());
+
+        var token = tokenService.generateToken(user);
+        return ResponseEntity.ok(new LoginResponseDTO(
+                token,
+                user.getRole().toString(),
+                user.getNome(),
+                user.getEmail(),
+                user.getTipoPerfil() != null ? user.getTipoPerfil() : "ELETRICISTA",
+                user.getTenantId()
+        ));
+    }
+
+    /**
+     * Reenvia um novo código de verificação para o e-mail
+     */
+    public ResponseEntity reenviarCodigo(ReenviarCodigoDTO data) {
+        User user = (User) userRepository.findByEmail(data.email());
+        if (user == null) {
+            return ResponseEntity.status(404).body("Usuário não encontrado.");
+        }
+
+        if (Boolean.TRUE.equals(user.getEmailVerificado())) {
+            return ResponseEntity.badRequest().body("Este e-mail já foi verificado anteriormente.");
+        }
+
+        String novoCodigo = String.format("%06d", new Random().nextInt(1000000));
+        user.setCodigoVerificacao(novoCodigo);
+        user.setCodigoExpiracao(LocalDateTime.now().plusMinutes(15));
+        userRepository.save(user);
+
+        emailService.enviarCodigoVerificacao(user.getEmail(), user.getNome(), novoCodigo);
+        logger.info("Novo código de verificação reenviado para: {}", user.getEmail());
+
+        return ResponseEntity.ok(Map.of("mensagem", "Novo código enviado com sucesso!"));
+    }
+
     public void upgradeUserToAdmin(String email) {
         User user = (User) userRepository.findByEmail(email);
         if (user != null) {
@@ -125,20 +212,14 @@ public class UserService {
         return (User) userRepository.findByEmail(email);
     }
 
-    /**
-     * Lista apenas eletricistas cadastrados reais no banco.
-     * Se não houver nenhum, retorna lista vazia (sem mock falso).
-     */
     public List<ParceiroDestaqueDTO> listarParceirosAntiPanelinha() {
         var usuarios = userRepository.findAll();
 
-        // Filtra apenas profissionais reais (não clientes e com nome válido)
         var eletricistas = usuarios.stream()
                 .filter(u -> !"CLIENTE".equals(u.getTipoPerfil()))
                 .filter(u -> u.getNome() != null && !u.getNome().isBlank())
                 .toList();
 
-        // Se não houver eletricistas reais cadastrados no banco, retorna lista vazia
         if (eletricistas.isEmpty()) {
             return List.of();
         }

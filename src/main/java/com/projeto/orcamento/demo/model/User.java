@@ -47,6 +47,11 @@ public class User implements UserDetails {
     private Integer dailyCount = 0;
     private LocalDateTime subscriptionExpiryDate;
 
+    @Column(columnDefinition = "boolean default false")
+    private Boolean emailVerificado = false;
+    private String codigoVerificacao;
+    private LocalDateTime codigoExpiracao;
+
     // Construtor legado de compatibilidade
     public User(String nome, String email, String password, UserRole role, String tenantId) {
         this(nome, email, password, role, tenantId, "ELETRICISTA", null);

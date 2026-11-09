@@ -7,6 +7,22 @@ import jakarta.validation.constraints.Size;
 
 public class AuthDTOs {
 
+    public record VerificarCodigoDTO(
+            @NotBlank(message = "E-mail é obrigatório")
+            @Email(message = "Formato de e-mail inválido")
+            String email,
+
+            @NotBlank(message = "Código é obrigatório")
+            @Size(min = 6, max = 6, message = "O código deve conter 6 dígitos")
+            String codigo
+    ) {}
+
+    public record ReenviarCodigoDTO(
+            @NotBlank(message = "E-mail é obrigatório")
+            @Email(message = "Formato de e-mail inválido")
+            String email
+    ) {}
+
     public record AuthenticationDTO(
             @NotBlank(message = "E-mail é obrigatório") 
             @Email(message = "Formato de e-mail inválido")
