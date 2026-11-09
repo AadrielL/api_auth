@@ -40,6 +40,7 @@ public class SecurityConfigurations {
                         .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/register").permitAll()
                         .requestMatchers(HttpMethod.GET, "/auth/vagas-vitalicias").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/auth/parceiros-destaque").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/payments/confirm").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/payments/process").permitAll()
                         // Exige ADMIN para rotas /admin
@@ -64,7 +65,7 @@ public class SecurityConfigurations {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:4200"));
+        configuration.setAllowedOriginPatterns(Arrays.asList("http://localhost:*", "http://127.0.0.1:*"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
 
         // Headers que o seu Interceptor do Angular envia
