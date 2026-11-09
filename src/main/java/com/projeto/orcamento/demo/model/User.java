@@ -38,18 +38,32 @@ public class User implements UserDetails {
     @Column(columnDefinition = "varchar(20) default 'FREE'")
     private String planType = "FREE";
 
+    private String tipoPerfil = "ELETRICISTA"; // ELETRICISTA ou CLIENTE
+    private String eletricistaVinculadoId;
+    private Double avaliacao = 5.0;
+    private LocalDateTime dataCadastro = LocalDateTime.now();
+
     private LocalDate lastCalculationDate;
     private Integer dailyCount = 0;
     private LocalDateTime subscriptionExpiryDate;
 
-    // Construtor personalizado para o Registro
+    // Construtor legado de compatibilidade
     public User(String nome, String email, String password, UserRole role, String tenantId) {
+        this(nome, email, password, role, tenantId, "ELETRICISTA", null);
+    }
+
+    // Construtor completo com perfis multitenant
+    public User(String nome, String email, String password, UserRole role, String tenantId, String tipoPerfil, String eletricistaVinculadoId) {
         this.nome = nome;
         this.email = email;
         this.password = password;
         this.role = role;
         this.tenantId = tenantId;
         this.planType = "FREE";
+        this.tipoPerfil = tipoPerfil != null && !tipoPerfil.isBlank() ? tipoPerfil.toUpperCase() : "ELETRICISTA";
+        this.eletricistaVinculadoId = eletricistaVinculadoId;
+        this.dataCadastro = LocalDateTime.now();
+        this.avaliacao = 5.0;
     }
 
     public void incrementDailyCount() {
