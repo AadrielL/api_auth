@@ -14,13 +14,17 @@ public class AuthDTOs {
 
             @NotBlank(message = "Código é obrigatório")
             @Size(min = 6, max = 6, message = "O código deve conter 6 dígitos")
-            String codigo
+            String codigo,
+
+            String codigoSms
     ) {}
 
     public record ReenviarCodigoDTO(
             @NotBlank(message = "E-mail é obrigatório")
             @Email(message = "Formato de e-mail inválido")
-            String email
+            String email,
+
+            String canal // EMAIL, SMS ou AMBOS
     ) {}
 
     public record AuthenticationDTO(
@@ -58,7 +62,15 @@ public class AuthDTOs {
             String password,
 
             String tipoPerfil, // ELETRICISTA ou CLIENTE
-            String eletricistaVinculadoId // Opcional: ID ou Tenant do parceiro escolhido
+            String eletricistaVinculadoId, // Opcional: ID ou Tenant do parceiro escolhido
+
+            // Ficha Cadastral & Geolocalização
+            String cpf,
+            String telefone,
+            String cep,
+            String estado,
+            String cidade,
+            String bairro
     ) {}
 
     public record UserResponseDTO(
@@ -69,7 +81,14 @@ public class AuthDTOs {
             String tenantId, 
             String planType,
             String tipoPerfil,
-            String eletricistaVinculadoId
+            String eletricistaVinculadoId,
+            String cpf,
+            String telefone,
+            String cep,
+            String estado,
+            String cidade,
+            String bairro,
+            Boolean telefoneVerificado
     ) {
         public UserResponseDTO(User user) {
             this(
@@ -80,7 +99,14 @@ public class AuthDTOs {
                 user.getTenantId(), 
                 user.getPlanType() != null ? user.getPlanType() : "FREE",
                 user.getTipoPerfil() != null ? user.getTipoPerfil() : "ELETRICISTA",
-                user.getEletricistaVinculadoId()
+                user.getEletricistaVinculadoId(),
+                user.getCpf(),
+                user.getTelefone(),
+                user.getCep(),
+                user.getEstado(),
+                user.getCidade(),
+                user.getBairro(),
+                user.getTelefoneVerificado()
             );
         }
     }
@@ -90,11 +116,22 @@ public class AuthDTOs {
             String nome,
             String tenantId,
             String regiao,
+            String estado,
+            String cidade,
+            String bairro,
             Double avaliacao,
             Integer totalAvaliacoes,
             java.util.List<String> especialidades,
             Boolean inicianteDestaque,
             String tempoResposta,
             Boolean seloNbr
+    ) {}
+
+    public record AvaliacaoProfissionalDTO(
+            String profissionalId,
+            String tenantId,
+            String orcamentoId,
+            Integer estrelas,
+            String tag
     ) {}
 }

@@ -6,7 +6,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -21,16 +20,14 @@ public class EmailService {
     private String remetente;
 
     public void enviarCodigoVerificacao(String destinatario, String nome, String codigo) {
-        // Log de alta visibilidade no terminal (para desenvolvimento e testes imediatos)
         logger.info("\n==============================================================" +
-                    "\n⚡ [AMORIS TECH] CÓDIGO DE ATIVAÇÃO DE CONTA" +
+                    "\n⚡ [AMORIS TECH] CÓDIGO DE ATIVAÇÃO DE E-MAIL" +
                     "\nDestinatário : {} ({})" +
-                    "\nCódigo       : {}" +
+                    "\nCódigo E-mail: {}" +
                     "\nValidade     : 15 minutos" +
                     "\n==============================================================",
                     destinatario, nome, codigo);
 
-        // Se houver servidor SMTP configurado no application.properties / .env, envia o e-mail real
         if (mailSender != null && remetente != null && !remetente.isBlank()) {
             try {
                 SimpleMailMessage message = new SimpleMailMessage();
@@ -48,5 +45,16 @@ public class EmailService {
                 logger.warn("Não foi possível disparar o e-mail via SMTP (código registrado em log): {}", e.getMessage());
             }
         }
+    }
+
+    public void enviarCodigoSmsVerificacao(String telefone, String nome, String codigoSms) {
+        if (telefone == null || telefone.isBlank()) return;
+        logger.info("\n==============================================================" +
+                    "\n📱 [AMORIS TECH] SMS / WHATSAPP DE VERIFICAÇÃO DE NÚMERO REAL" +
+                    "\nTelefone     : {} ({})" +
+                    "\nCódigo SMS   : {}" +
+                    "\nValidade     : 15 minutos" +
+                    "\n==============================================================",
+                    telefone, nome, codigoSms);
     }
 }

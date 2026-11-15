@@ -85,4 +85,10 @@ public class AuthController {
     public ResponseEntity<java.util.List<ParceiroDestaqueDTO>> getParceirosDestaque() {
         return ResponseEntity.ok(userService.listarParceirosAntiPanelinha());
     }
+
+    // M3-05: Avaliação Pós-Serviço Simples (1 a 5 estrelas + tag objetiva após orçamento Aceito)
+    @PostMapping("/avaliar-profissional")
+    public ResponseEntity<?> avaliarProfissional(@RequestBody AvaliacaoProfissionalDTO data) {
+        return userService.registrarAvaliacaoPosServico(data);
+    }
 }
