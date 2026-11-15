@@ -63,38 +63,50 @@ public class UserService {
             String eletricistaVinculado = data.eletricistaVinculadoId();
 
             if ("CLIENTE".equals(tipoPerfil)) {
-                // Fluxo do Cliente: Vincula ao Eletricista escolhido ou atribui automaticamente
+                // Fluxo do Cliente: Vincula ao Eletricista escolhido (?ref= id, email ou tenantId) ou atribui por Geolocalização
                 if (eletricistaVinculado != null && !eletricistaVinculado.isBlank()) {
-                    var eletricistaOpt = userRepository.findById(eletricistaVinculado);
+                    String refTrim = eletricistaVinculado.trim();
+                    var eletricistaOpt = userRepository.findById(refTrim);
                     if (eletricistaOpt.isPresent()) {
                         tenantId = eletricistaOpt.get().getTenantId();
+                        eletricistaVinculado = eletricistaOpt.get().getId();
                     } else {
-                        tenantId = UUID.randomUUID().toString();
+                        var porTenantOuEmail = userRepository.findAll().stream()
+                                .filter(u -> refTrim.equalsIgnoreCase(u.getTenantId()) || refTrim.equalsIgnoreCase(u.getEmail()))
+                                .findFirst();
+                        if (porTenantOuEmail.isPresent()) {
+                            tenantId = porTenantOuEmail.get().getTenantId();
+                            eletricistaVinculado = porTenantOuEmail.get().getId();
+                        } else {
+                            tenantId = refTrim;
+                        }
                     }
                 } else {
-                    // Atribuição automática (Anti-Panelinha): Eletricista mais recente com avaliação >= 4.5
-                    var eletricistasAtivos = userRepository.findAll().stream()
+                    var todosEletricistas = userRepository.findAll().stream()
                             .filter(u -> !"CLIENTE".equals(u.getTipoPerfil()) && u.getRole() != UserRole.ADMIN)
-                            .filter(u -> u.getAvaliacao() != null && u.getAvaliacao() >= 4.5)
-                            .sorted(Comparator.comparing(User::getDataCadastro, Comparator.nullsLast(Comparator.reverseOrder())))
+                            .filter(u -> u.getAvaliacao() == null || u.getAvaliacao() >= 4.5)
+                            .sorted(Comparator
+                                    .comparing((User u) -> calcularScoreGeolocalizacao(u, data.estado(), data.cidade(), data.bairro())).reversed()
+                                    .thenComparing(User::getDataCadastro, Comparator.nullsLast(Comparator.reverseOrder())))
                             .toList();
 
-                    if (!eletricistasAtivos.isEmpty()) {
-                        User eleito = eletricistasAtivos.get(0);
+                    if (!todosEletricistas.isEmpty()) {
+                        User eleito = todosEletricistas.get(0);
                         tenantId = eleito.getTenantId();
                         eletricistaVinculado = eleito.getId();
-                        logger.info("Anti-Panelinha: Cliente {} atribuído ao eletricista recente: {}", data.email(), eleito.getNome());
+                        logger.info("Geolocalização + Anti-Panelinha: Cliente {} ({}/{}/{}) atribuído ao eletricista: {}",
+                                data.email(), data.bairro(), data.cidade(), data.estado(), eleito.getNome());
                     } else {
                         tenantId = UUID.randomUUID().toString();
                     }
                 }
             } else {
-                // Eletricista cria seu próprio espaço tenant
                 tenantId = UUID.randomUUID().toString();
             }
 
-            // Gera código numérico de 6 dígitos para validação real do e-mail
+            // Gera código numérico de 6 dígitos para validação de e-mail e SMS
             String codigo = String.format("%06d", new Random().nextInt(1000000));
+            String codigoSms = String.format("%06d", new Random().nextInt(1000000));
 
             User newUser = new User(
                     data.nome(),
@@ -105,20 +117,31 @@ public class UserService {
                     tipoPerfil,
                     eletricistaVinculado
             );
+            newUser.setCpf(data.cpf() != null ? data.cpf().replaceAll("\\D", "") : null);
+            newUser.setTelefone(data.telefone() != null ? data.telefone().replaceAll("\\D", "") : null);
+            newUser.setCep(data.cep() != null ? data.cep().replaceAll("\\D", "") : null);
+            newUser.setEstado(data.estado() != null ? data.estado().trim().toUpperCase() : null);
+            newUser.setCidade(data.cidade() != null ? data.cidade().trim() : null);
+            newUser.setBairro(data.bairro() != null ? data.bairro().trim() : null);
+
             newUser.setCodigoVerificacao(codigo);
+            newUser.setCodigoSmsVerificacao(codigoSms);
             newUser.setCodigoExpiracao(LocalDateTime.now().plusMinutes(15));
             newUser.setEmailVerificado(false);
+            newUser.setTelefoneVerificado(false);
 
             this.userRepository.save(newUser);
-            logger.info("Usuário {} registrado. Código de verificação gerado.", data.email());
+            logger.info("Usuário {} registrado com ficha cadastral completa e região {}/{}.", data.email(), data.cidade(), data.estado());
 
-            // Dispara envio do e-mail via serviço de mensageria
             emailService.enviarCodigoVerificacao(newUser.getEmail(), newUser.getNome(), codigo);
+            emailService.enviarCodigoSmsVerificacao(newUser.getTelefone(), newUser.getNome(), codigoSms);
 
             return ResponseEntity.ok(Map.of(
-                    "mensagem", "Cadastro realizado com sucesso! Enviamos um código de verificação para o seu e-mail.",
+                    "mensagem", "Cadastro realizado com sucesso! Enviamos os códigos de verificação para seu E-mail e Telefone (SMS).",
                     "email", newUser.getEmail(),
-                    "emailVerificado", false
+                    "telefone", newUser.getTelefone() != null ? newUser.getTelefone() : "",
+                    "emailVerificado", false,
+                    "telefoneVerificado", false
             ));
         } catch (Exception e) {
             logger.error("Erro crítico no registro: ", e);
@@ -126,8 +149,22 @@ public class UserService {
         }
     }
 
+    private int calcularScoreGeolocalizacao(User eletricista, String estado, String cidade, String bairro) {
+        int score = 0;
+        if (estado != null && !estado.isBlank() && estado.equalsIgnoreCase(eletricista.getEstado())) {
+            score += 2;
+        }
+        if (cidade != null && !cidade.isBlank() && cidade.equalsIgnoreCase(eletricista.getCidade())) {
+            score += 4;
+        }
+        if (bairro != null && !bairro.isBlank() && bairro.equalsIgnoreCase(eletricista.getBairro())) {
+            score += 8;
+        }
+        return score;
+    }
+
     /**
-     * Valida o código de 6 dígitos recebido por e-mail e ativa a conta
+     * Valida o código de 6 dígitos recebido por e-mail ou SMS e ativa a conta
      */
     public ResponseEntity verificarCodigo(VerificarCodigoDTO data) {
         User user = (User) userRepository.findByEmail(data.email());
@@ -151,17 +188,23 @@ public class UserService {
             return ResponseEntity.badRequest().body("Código expirado. Por favor, solicite um novo código.");
         }
 
-        if (!data.codigo().trim().equals(user.getCodigoVerificacao())) {
+        String codigoDigitado = data.codigo().trim();
+        boolean matchEmail = codigoDigitado.equals(user.getCodigoVerificacao());
+        boolean matchSms = codigoDigitado.equals(user.getCodigoSmsVerificacao()) ||
+                (data.codigoSms() != null && data.codigoSms().trim().equals(user.getCodigoSmsVerificacao()));
+
+        if (!matchEmail && !matchSms) {
             return ResponseEntity.badRequest().body("Código de verificação incorreto.");
         }
 
-        // Ativa a conta com sucesso
         user.setEmailVerificado(true);
+        user.setTelefoneVerificado(true);
         user.setCodigoVerificacao(null);
+        user.setCodigoSmsVerificacao(null);
         user.setCodigoExpiracao(null);
         userRepository.save(user);
 
-        logger.info("Conta ativada com sucesso para o e-mail: {}", user.getEmail());
+        logger.info("Conta e Telefone ativados com sucesso para: {}", user.getEmail());
 
         var token = tokenService.generateToken(user);
         return ResponseEntity.ok(new LoginResponseDTO(
@@ -175,7 +218,7 @@ public class UserService {
     }
 
     /**
-     * Reenvia um novo código de verificação para o e-mail
+     * Reenvia um novo código de verificação para o e-mail e SMS
      */
     public ResponseEntity reenviarCodigo(ReenviarCodigoDTO data) {
         User user = (User) userRepository.findByEmail(data.email());
@@ -184,18 +227,21 @@ public class UserService {
         }
 
         if (Boolean.TRUE.equals(user.getEmailVerificado())) {
-            return ResponseEntity.badRequest().body("Este e-mail já foi verificado anteriormente.");
+            return ResponseEntity.badRequest().body("Esta conta já foi verificada anteriormente.");
         }
 
         String novoCodigo = String.format("%06d", new Random().nextInt(1000000));
+        String novoCodigoSms = String.format("%06d", new Random().nextInt(1000000));
         user.setCodigoVerificacao(novoCodigo);
+        user.setCodigoSmsVerificacao(novoCodigoSms);
         user.setCodigoExpiracao(LocalDateTime.now().plusMinutes(15));
         userRepository.save(user);
 
         emailService.enviarCodigoVerificacao(user.getEmail(), user.getNome(), novoCodigo);
-        logger.info("Novo código de verificação reenviado para: {}", user.getEmail());
+        emailService.enviarCodigoSmsVerificacao(user.getTelefone(), user.getNome(), novoCodigoSms);
+        logger.info("Novos códigos (E-mail e SMS) reenviados para: {}", user.getEmail());
 
-        return ResponseEntity.ok(Map.of("mensagem", "Novo código enviado com sucesso!"));
+        return ResponseEntity.ok(Map.of("mensagem", "Novo código enviado para seu E-mail e Telefone (SMS)!"));
     }
 
     public void upgradeUserToAdmin(String email) {
@@ -225,23 +271,83 @@ public class UserService {
         }
 
         return eletricistas.stream()
-                .map(u -> new ParceiroDestaqueDTO(
-                        u.getId(),
-                        u.getNome(),
-                        u.getTenantId() != null ? u.getTenantId() : u.getEmail(),
-                        "Palmas e Região",
-                        u.getAvaliacao() != null ? u.getAvaliacao() : 4.8,
-                        Math.max(1, Math.abs(u.getNome().hashCode() % 15)),
-                        List.of("Instalações Residenciais", "Norma NBR 5410", "Padrão Energisa"),
-                        u.getDailyCount() == null || u.getDailyCount() < 10,
-                        "< 15 min",
-                        true
-                ))
+                .map(u -> {
+                    String regiaoFormatada = "Palmas e Região";
+                    if (u.getBairro() != null && !u.getBairro().isBlank() && u.getCidade() != null && !u.getCidade().isBlank()) {
+                        regiaoFormatada = u.getBairro() + " — " + u.getCidade() + "/" + (u.getEstado() != null ? u.getEstado() : "TO");
+                    } else if (u.getCidade() != null && !u.getCidade().isBlank()) {
+                        regiaoFormatada = u.getCidade() + "/" + (u.getEstado() != null ? u.getEstado() : "TO");
+                    }
+                    return new ParceiroDestaqueDTO(
+                            u.getId(),
+                            u.getNome(),
+                            u.getTenantId() != null ? u.getTenantId() : u.getEmail(),
+                            regiaoFormatada,
+                            u.getEstado() != null ? u.getEstado() : "TO",
+                            u.getCidade() != null ? u.getCidade() : "Palmas",
+                            u.getBairro() != null ? u.getBairro() : "Centro",
+                            u.getAvaliacao() != null ? u.getAvaliacao() : 5.0,
+                            u.getTotalAvaliacoes() != null && u.getTotalAvaliacoes() > 0
+                                    ? u.getTotalAvaliacoes()
+                                    : Math.max(1, Math.abs(u.getNome().hashCode() % 6)),
+                            List.of("Instalações Residenciais", "Norma NBR 5410", "Padrão Energisa"),
+                            (u.getTotalAvaliacoes() == null || u.getTotalAvaliacoes() < 5) && (u.getDailyCount() == null || u.getDailyCount() < 10),
+                            "< 15 min",
+                            true
+                    );
+                })
                 .sorted((a, b) -> {
                     if (a.inicianteDestaque() && !b.inicianteDestaque()) return -1;
                     if (!a.inicianteDestaque() && b.inicianteDestaque()) return 1;
                     return Double.compare(b.avaliacao(), a.avaliacao());
                 })
                 .toList();
+    }
+
+    /**
+     * M3-05: Registra avaliação rápida pós-serviço (1 a 5 estrelas + tag objetiva) e atualiza a nota média real do profissional
+     */
+    public ResponseEntity<?> registrarAvaliacaoPosServico(AvaliacaoProfissionalDTO dto) {
+        if (dto.estrelas() == null || dto.estrelas() < 1 || dto.estrelas() > 5) {
+            return ResponseEntity.badRequest().body("A nota deve ser de 1 a 5 estrelas.");
+        }
+
+        User profissional = null;
+        if (dto.profissionalId() != null && !dto.profissionalId().isBlank()) {
+            profissional = userRepository.findById(dto.profissionalId()).orElse(null);
+        }
+        if (profissional == null && dto.tenantId() != null && !dto.tenantId().isBlank()) {
+            profissional = userRepository.findAll().stream()
+                    .filter(u -> dto.tenantId().equalsIgnoreCase(u.getTenantId()) || dto.tenantId().equalsIgnoreCase(u.getEmail()))
+                    .findFirst()
+                    .orElse(null);
+        }
+
+        if (profissional == null) {
+            return ResponseEntity.status(404).body("Profissional não encontrado para avaliação.");
+        }
+
+        int totalAnterior = profissional.getTotalAvaliacoes() != null ? profissional.getTotalAvaliacoes() : 1;
+        double mediaAnterior = profissional.getAvaliacao() != null ? profissional.getAvaliacao() : 5.0;
+        int novoTotal = totalAnterior + 1;
+        double novaMedia = ((mediaAnterior * totalAnterior) + dto.estrelas()) / novoTotal;
+
+        profissional.setTotalAvaliacoes(novoTotal);
+        profissional.setAvaliacao(Math.round(novaMedia * 10.0) / 10.0);
+
+        if (dto.tag() != null && !dto.tag().isBlank()) {
+            String tagsAtuais = profissional.getTagsAvaliacao() != null ? profissional.getTagsAvaliacao() : "";
+            profissional.setTagsAvaliacao(tagsAtuais.isEmpty() ? dto.tag() : tagsAtuais + "," + dto.tag());
+        }
+
+        userRepository.save(profissional);
+        logger.info("M3-05 Avaliação registrada para {}: {} estrelas ({}) -> Nova média: {}",
+                profissional.getNome(), dto.estrelas(), dto.tag(), profissional.getAvaliacao());
+
+        return ResponseEntity.ok(Map.of(
+                "mensagem", "Avaliação registrada com sucesso!",
+                "novaMedia", profissional.getAvaliacao(),
+                "totalAvaliacoes", profissional.getTotalAvaliacoes()
+        ));
     }
 }
