@@ -41,7 +41,24 @@ public class User implements UserDetails {
     private String tipoPerfil = "ELETRICISTA"; // ELETRICISTA ou CLIENTE
     private String eletricistaVinculadoId;
     private Double avaliacao = 5.0;
+    private Integer totalAvaliacoes = 0;
+
+    @Column(columnDefinition = "TEXT")
+    private String tagsAvaliacao;
+
     private LocalDateTime dataCadastro = LocalDateTime.now();
+
+    // Ficha Cadastral Completa & Geolocalização (Estado, Cidade, Bairro, CEP, CPF, Telefone)
+    private String cpf;
+    private String telefone;
+    private String cep;
+    private String estado;
+    private String cidade;
+    private String bairro;
+
+    @Column(columnDefinition = "boolean default false")
+    private Boolean telefoneVerificado = false;
+    private String codigoSmsVerificacao;
 
     private LocalDate lastCalculationDate;
     private Integer dailyCount = 0;
