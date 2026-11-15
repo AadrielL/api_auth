@@ -43,6 +43,7 @@ public class SecurityConfigurations {
                         .requestMatchers(HttpMethod.POST, "/auth/reenviar-codigo").permitAll()
                         .requestMatchers(HttpMethod.GET, "/auth/vagas-vitalicias").permitAll()
                         .requestMatchers(HttpMethod.GET, "/auth/parceiros-destaque").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/auth/avaliar-profissional").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/payments/confirm").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/payments/process").permitAll()
                         // Exige ADMIN para rotas /admin
