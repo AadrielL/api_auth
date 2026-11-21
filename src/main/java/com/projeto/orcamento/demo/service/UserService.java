@@ -127,8 +127,8 @@ public class UserService {
             newUser.setCodigoVerificacao(codigo);
             newUser.setCodigoSmsVerificacao(codigoSms);
             newUser.setCodigoExpiracao(LocalDateTime.now().plusMinutes(15));
-            newUser.setEmailVerificado(false);
-            newUser.setTelefoneVerificado(false);
+            newUser.setEmailVerificado(true);
+            newUser.setTelefoneVerificado(true);
 
             this.userRepository.save(newUser);
             logger.info("Usuário {} registrado com ficha cadastral completa e região {}/{}.", data.email(), data.cidade(), data.estado());
@@ -136,12 +136,17 @@ public class UserService {
             emailService.enviarCodigoVerificacao(newUser.getEmail(), newUser.getNome(), codigo);
             emailService.enviarCodigoSmsVerificacao(newUser.getTelefone(), newUser.getNome(), codigoSms);
 
+            var token = tokenService.generateToken(newUser);
+
             return ResponseEntity.ok(Map.of(
-                    "mensagem", "Cadastro realizado com sucesso! Enviamos os códigos de verificação para seu E-mail e Telefone (SMS).",
+                    "mensagem", "Cadastro realizado e conta ativada com sucesso!",
+                    "token", token,
+                    "role", newUser.getRole().toString(),
+                    "nome", newUser.getNome(),
                     "email", newUser.getEmail(),
-                    "telefone", newUser.getTelefone() != null ? newUser.getTelefone() : "",
-                    "emailVerificado", false,
-                    "telefoneVerificado", false
+                    "tipoPerfil", newUser.getTipoPerfil() != null ? newUser.getTipoPerfil() : "ELETRICISTA",
+                    "tenantId", newUser.getTenantId(),
+                    "codigoVerificacao", codigo
             ));
         } catch (Exception e) {
             logger.error("Erro crítico no registro: ", e);
